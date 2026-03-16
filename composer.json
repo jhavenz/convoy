@@ -1,0 +1,79 @@
+{
+    "name": "jhavenz/convoy",
+    "description": "Expression-based async coordination for PHP 8.4+ (monorepo)",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jonathan Havens",
+            "email": "mail@jhavens.tech"
+        }
+    ],
+    "type": "project",
+    "require": {
+        "php": "^8.4",
+        "evenement/evenement": "^3.0",
+        "react/async": "^4.3",
+        "react/child-process": "^0.6",
+        "react/event-loop": "^1.5",
+        "react/http": "^1.10",
+        "react/promise": "^3.2",
+        "react/stream": "^1.4"
+    },
+    "require-dev": {
+        "clue/docker-react": "^1.6",
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0",
+        "react/promise-timer": "^1.11",
+        "rector/rector": "^2.0",
+        "slevomat/coding-standard": "^8.15",
+        "squizlabs/php_codesniffer": "^3.10",
+        "symplify/monorepo-builder": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Convoy\\": "packages/convoy-core/src/",
+            "Convoy\\Console\\": "packages/convoy-console/src/",
+            "Convoy\\Http\\": "packages/convoy-http/src/",
+            "Convoy\\Parallel\\": "packages/convoy-parallel/src/",
+            "Convoy\\Stream\\": "packages/convoy-stream/src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Convoy\\Console\\Tests\\": "packages/convoy-console/tests/",
+            "Convoy\\Http\\Tests\\": "packages/convoy-http/tests/",
+            "Convoy\\Parallel\\Tests\\": "packages/convoy-parallel/tests/",
+            "Convoy\\Stream\\Tests\\": "packages/convoy-stream/tests/",
+            "Convoy\\Tests\\": "packages/convoy-core/tests/"
+        },
+        "classmap": [
+            "packages/convoy-core/tests/Support/Fixtures/"
+        ]
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/*"
+        }
+    ],
+    "scripts": {
+        "test": "php vendor/bin/phpunit",
+        "test:core": "cd packages/convoy-core && php vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "symfony/runtime": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "replace": {
+        "convoy/console": "1.0.0-alpha",
+        "convoy/core": "1.0.0-alpha",
+        "convoy/http": "1.0.0-alpha",
+        "convoy/parallel": "1.0.0-alpha",
+        "convoy/stream": "1.0.0-alpha"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

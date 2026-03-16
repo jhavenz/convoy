@@ -1,0 +1,13 @@
+/vendor/
+composer.phar
+*.cache
+*.log
+*.sqlite
+.*
+*.md
+
+!.gitignore
+!.gitattributes
+!.github/
+
+!CLAUDE.md

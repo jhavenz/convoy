@@ -1,0 +1,31 @@
+{
+    "name": "convoy/stream",
+    "description": "Reactive stream primitives for Convoy",
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": "^8.4",
+        "convoy/core": "^1.0",
+        "react/async": "^4.3",
+        "react/event-loop": "^1.5",
+        "react/stream": "^1.4",
+        "evenement/evenement": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Convoy\\Stream\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Convoy\\Stream\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0-dev"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
