@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 3) . '/vendor/autoload.php';
+require dirname(__DIR__, 2) . '/vendor/autoload.php';
 require __DIR__ . '/DockerBundle.php';
 require __DIR__ . '/Commands/PsCommand.php';
 require __DIR__ . '/Commands/ImagesCommand.php';

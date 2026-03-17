@@ -7,10 +7,11 @@ namespace Convoy\WebSocket;
 use Convoy\Service\ServiceBundle;
 use Convoy\Service\Services;
 
-final class WsServiceBundle implements ServiceBundle
+final readonly class WsServiceBundle implements ServiceBundle
 {
+    /** @param list<string> $subprotocols */
     public function __construct(
-        private readonly array $subprotocols = [],
+        private array $subprotocols = [],
     ) {
     }
 

@@ -53,7 +53,7 @@ final class RouteMatcher implements HandlerMatcher
                     $scope,
                     $request,
                     new RouteParams($params),
-                    new QueryParams($request->getQueryParams() ?? []),
+                    new QueryParams($request->getQueryParams()),
                     $handler->config,
                 );
 

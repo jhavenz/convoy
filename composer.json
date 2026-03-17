@@ -61,7 +61,13 @@
     ],
     "scripts": {
         "test": "php vendor/bin/phpunit",
-        "test:core": "cd packages/convoy-core && php vendor/bin/phpunit"
+        "test:core": "cd packages/convoy-core && php vendor/bin/phpunit",
+        "analyse": "php vendor/bin/phpstan analyse",
+        "rector": "php vendor/bin/rector process",
+        "rector:dry": "php vendor/bin/rector process --dry-run",
+        "cs": "php vendor/bin/phpcs --standard=packages/convoy-core/phpcs.xml",
+        "cs:fix": "php vendor/bin/phpcbf --standard=packages/convoy-core/phpcs.xml",
+        "check": ["@analyse", "@rector:dry", "@test"]
     },
     "config": {
         "sort-packages": true,

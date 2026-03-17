@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Convoy\WebSocket\Tests\Integration;
 
-use Convoy\WebSocket\WsCloseCode;
 use Convoy\WebSocket\WsGateway;
 use Convoy\WebSocket\WsConnection;
 use Convoy\WebSocket\WsMessage;
-use GuzzleHttp\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -181,10 +179,7 @@ final class WsGatewayBroadcastTest extends TestCase
 
     private function createConnection(): WsConnection
     {
-        return new WsConnection(
-            bin2hex(random_bytes(8)),
-            new ServerRequest('GET', '/ws'),
-        );
+        return new WsConnection(bin2hex(random_bytes(8)));
     }
 
     private function assertOutboundContains(WsConnection $conn, string $expected): void

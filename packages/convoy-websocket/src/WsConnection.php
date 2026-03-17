@@ -9,7 +9,6 @@ use Convoy\Stream\Channel;
 use Convoy\Stream\Emitter;
 use Convoy\Stream\Contract\StreamContext;
 use Convoy\Stream\ScopedStream;
-use Psr\Http\Message\ServerRequestInterface;
 
 final class WsConnection
 {
@@ -26,7 +25,6 @@ final class WsConnection
 
     public function __construct(
         private readonly string $connectionId,
-        public readonly ServerRequestInterface $request,
         int $inboundBuffer = 32,
         int $outboundBuffer = 64,
     ) {

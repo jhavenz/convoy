@@ -34,8 +34,9 @@ final class SseResponse
                     $data = is_string($item) ? $item : json_encode($item, JSON_THROW_ON_ERROR);
                     $stream->write(SseEncoder::encode($data, $event, (string) ++$id));
                 }
-            } catch (\Throwable) {
-                // Stream closed or scope cancelled -- both are normal termination
+            } catch (\Convoy\Exception\CancelledException) {
+            } catch (\Throwable $e) {
+                fwrite(STDERR, "SSE pump error: {$e->getMessage()}\n");
             } finally {
                 if ($stream->isWritable()) {
                     $stream->end();

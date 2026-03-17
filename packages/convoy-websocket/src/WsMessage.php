@@ -71,8 +71,11 @@ final class WsMessage
         $closeCode = null;
 
         if ($opcode === Frame::OP_CLOSE && strlen($payload) >= 2) {
-            $code = unpack('n', substr($payload, 0, 2))[1];
-            $closeCode = WsCloseCode::tryFrom($code);
+            $unpacked = unpack('n', substr($payload, 0, 2));
+            if ($unpacked === false) {
+                return new self($payload, $opcode);
+            }
+            $closeCode = WsCloseCode::tryFrom((int) $unpacked[1]);
             $payload = substr($payload, 2);
         }
 

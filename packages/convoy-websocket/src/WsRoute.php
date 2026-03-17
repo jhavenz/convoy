@@ -10,14 +10,15 @@ use Convoy\Task\Scopeable;
 
 final readonly class WsRoute implements Scopeable
 {
-    public function __construct(
-        public Closure $fn,
-        public WsConfig $config = new WsConfig(),
-    ) {
+    /** @param Closure(WsScope): void $fn */
+    public function __construct(public Closure $fn, public WsConfig $config = new WsConfig())
+    {
     }
 
     public function __invoke(Scope $scope): mixed
     {
-        return ($this->fn)($scope);
+        assert($scope instanceof WsScope);
+        ($this->fn)($scope);
+        return null;
     }
 }

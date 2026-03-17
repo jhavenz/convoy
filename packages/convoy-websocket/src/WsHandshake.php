@@ -10,9 +10,9 @@ use Psr\Http\Message\ResponseInterface;
 use Ratchet\RFC6455\Handshake\RequestVerifier;
 use Ratchet\RFC6455\Handshake\ServerNegotiator;
 
-final class WsHandshake
+final readonly class WsHandshake
 {
-    private readonly ServerNegotiator $negotiator;
+    private ServerNegotiator $negotiator;
 
     /** @param list<string> $subprotocols */
     public function __construct(array $subprotocols = [])

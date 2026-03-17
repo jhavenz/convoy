@@ -45,7 +45,9 @@ final class WsGateway
 
         foreach ($topics as $topic) {
             if (!isset($this->topics[$topic])) {
-                $this->topics[$topic] = new WeakMap();
+                /** @var WeakMap<WsConnection, true> $topicMap */
+                $topicMap = new WeakMap();
+                $this->topics[$topic] = $topicMap;
             }
 
             $this->topics[$topic][$conn] = true;

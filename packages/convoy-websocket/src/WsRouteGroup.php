@@ -86,7 +86,7 @@ final class WsRouteGroup implements Executable
             ServerRequestInterface $request,
         ) use ($group): ResponseInterface {
             $scope = $scope->withAttribute('request', $request);
-            $match = (new RouteMatcher())->match($scope, $group->inner->all());
+            $match = new RouteMatcher()->match($scope, $group->inner->all());
 
             if ($match === null) {
                 throw new \RuntimeException("No route matches GET {$request->getUri()->getPath()}");
@@ -135,6 +135,10 @@ final class WsRouteGroup implements Executable
     {
         if (preg_match('#^WS\s+(/\S*)$#i', $key, $m)) {
             return $m[1];
+        }
+
+        if (str_starts_with($key, '/')) {
+            return $key;
         }
 
         return null;

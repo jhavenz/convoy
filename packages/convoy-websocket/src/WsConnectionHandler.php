@@ -15,12 +15,12 @@ use React\Stream\DuplexStreamInterface;
 
 use function React\Async\async;
 
-final class WsConnectionHandler
+final readonly class WsConnectionHandler
 {
     public function __construct(
-        private readonly Scopeable|Executable $pump,
-        private readonly WsConfig $config,
-        private readonly WsGateway $gateway,
+        private Scopeable|Executable $pump,
+        private WsConfig $config,
+        private WsGateway $gateway,
     ) {
     }
 
@@ -31,7 +31,7 @@ final class WsConnectionHandler
         RouteParams $params,
     ): void {
         $codec = new WsFrameCodec($this->config->maxMessageSize, $this->config->maxFrameSize);
-        $conn = new WsConnection(bin2hex(random_bytes(16)), $request);
+        $conn = new WsConnection(bin2hex(random_bytes(16)));
 
         $this->gateway->register($conn);
 
@@ -55,6 +55,7 @@ final class WsConnectionHandler
 
         $drainFn = async(static function () use ($conn, $codec, $transport): void {
             foreach ($conn->outbound->consume() as $msg) {
+                assert($msg instanceof WsMessage);
                 if (!$transport->isWritable()) {
                     break;
                 }
@@ -105,6 +106,10 @@ final class WsConnectionHandler
             $scope->dispose();
         });
 
-        $scope->execute($this->pump);
+        if ($this->pump instanceof WsRoute) {
+            ($this->pump->fn)($wsScope);
+        } else {
+            $wsScope->execute($this->pump);
+        }
     }
 }

@@ -18,6 +18,7 @@ use React\EventLoop\TimerInterface;
 use React\Http\HttpServer;
 use React\Http\Message\Response;
 use React\Socket\SocketServer;
+use React\Stream\CompositeStream;
 use React\Stream\ThroughStream;
 use RuntimeException;
 
@@ -32,7 +33,7 @@ final class Runner
     private ?SocketServer $socket = null;
     private ?TimerInterface $windowsTimer = null;
 
-    /** @var ?callable(ExecutionScope, DuplexStreamInterface, ServerRequestInterface, RouteParams, Handler): void */
+    /** @var ?callable(\Convoy\ExecutionScope, \React\Stream\ThroughStream, \Psr\Http\Message\ServerRequestInterface): ?\Psr\Http\Message\ResponseInterface */
     private $onUpgrade = null;
 
     public function __construct(
@@ -149,9 +150,27 @@ final class Runner
 
         try {
             $onUpgrade = $this->onUpgrade;
-            $throughStream = new ThroughStream();
 
-            $response = $onUpgrade($scope, $throughStream, $request);
+            // Two separate channels prevent the echo loop that occurs with a
+            // single ThroughStream. React HTTP pipes client data INTO the
+            // response body's writable side, while the WsConnectionHandler
+            // writes server frames to the transport's writable side. With a
+            // single ThroughStream both directions share the same 'data' event,
+            // causing server frames to be fed back into the frame codec.
+            $outgoing = new ThroughStream(); // server -> client
+            $incoming = new ThroughStream(); // client -> server
+
+            // Transport for the upgrade handler:
+            //   read ('data') from $incoming (client frames)
+            //   write() to $outgoing (server frames)
+            $transport = new CompositeStream($incoming, $outgoing);
+
+            // Response body for React HTTP:
+            //   read ('data') from $outgoing (server frames sent to client)
+            //   write() to $incoming (React HTTP pipes client data here)
+            $body = new CompositeStream($outgoing, $incoming);
+
+            $response = $onUpgrade($scope, $transport, $request);
 
             if (!$response instanceof ResponseInterface) {
                 $scope->dispose();
@@ -166,7 +185,7 @@ final class Runner
             return new Response(
                 101,
                 $response->getHeaders(),
-                $throughStream,
+                $body,
             );
         } catch (RuntimeException $e) {
             $scope->dispose();

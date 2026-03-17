@@ -5,17 +5,14 @@ declare(strict_types=1);
 namespace Convoy\WebSocket\Tests\Integration;
 
 use Convoy\Application;
-use Convoy\ExecutionScope;
-use Convoy\Stream\Channel;
-use Convoy\WebSocket\WsCloseCode;
 use Convoy\WebSocket\WsConfig;
 use Convoy\WebSocket\WsConnection;
 use Convoy\WebSocket\WsConnectionHandler;
 use Convoy\WebSocket\WsGateway;
 use Convoy\WebSocket\WsMessage;
+use Convoy\WebSocket\WsRoute;
 use Convoy\WebSocket\WsScope;
 use Convoy\Http\RouteParams;
-use Convoy\Task\Task;
 use GuzzleHttp\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -23,7 +20,6 @@ use Ratchet\RFC6455\Messaging\Frame;
 use React\Stream\ThroughStream;
 
 use function React\Async\async;
-use function React\Async\await;
 
 final class WsConnectionLifecycleTest extends TestCase
 {
@@ -44,30 +40,23 @@ final class WsConnectionLifecycleTest extends TestCase
     {
         $received = [];
 
-        $pump = Task::of(static function (ExecutionScope $es) use (&$received): void {
-            if (!$es instanceof WsScope) {
-                return;
-            }
-
-            $es->connection->stream($es)
+        $route = new WsRoute(fn: static function (WsScope $ws) use (&$received): void {
+            $ws->connection->stream($ws)
                 ->filter(static fn(WsMessage $m) => $m->isText)
                 ->onEach(static function (WsMessage $m) use (&$received): void {
                     $received[] = $m->payload;
                 })
                 ->take(2)
                 ->consume();
-        });
+        }, config: new WsConfig(pingInterval: 0));
 
         $gateway = new WsGateway();
-        $config = new WsConfig(pingInterval: 0);
-        $handler = new WsConnectionHandler($pump, $config, $gateway);
+        $handler = new WsConnectionHandler($route, $route->config, $gateway);
 
         $transport = new ThroughStream();
-        $request = new ServerRequest('GET', '/ws/test');
-        $scope = $this->app->createScope();
 
-        async(static function () use ($handler, $scope, $transport, $request): void {
-            $handler->handle($scope, $transport, $request, new RouteParams([]));
+        async(function () use ($handler, $transport): void {
+            $handler->handle($this->app->createScope(), $transport, new ServerRequest('GET', '/ws/test'), new RouteParams([]));
         })();
 
         $this->sendMaskedText($transport, 'message one');
@@ -82,29 +71,21 @@ final class WsConnectionLifecycleTest extends TestCase
     {
         $written = [];
 
-        $pump = Task::of(static function (ExecutionScope $es): void {
-            if (!$es instanceof WsScope) {
-                return;
-            }
-
-            $es->connection->sendText('hello from server');
-            $es->connection->close();
-        });
+        $route = new WsRoute(fn: static function (WsScope $ws): void {
+            $ws->connection->sendText('hello from server');
+            $ws->connection->close();
+        }, config: new WsConfig(pingInterval: 0));
 
         $gateway = new WsGateway();
-        $config = new WsConfig(pingInterval: 0);
-        $handler = new WsConnectionHandler($pump, $config, $gateway);
+        $handler = new WsConnectionHandler($route, $route->config, $gateway);
 
         $transport = new ThroughStream();
         $transport->on('data', static function (string $data) use (&$written): void {
             $written[] = $data;
         });
 
-        $request = new ServerRequest('GET', '/ws/test');
-        $scope = $this->app->createScope();
-
-        async(static function () use ($handler, $scope, $transport, $request): void {
-            $handler->handle($scope, $transport, $request, new RouteParams([]));
+        async(function () use ($handler, $transport): void {
+            $handler->handle($this->app->createScope(), $transport, new ServerRequest('GET', '/ws/test'), new RouteParams([]));
         })();
 
         $this->assertNotEmpty($written, 'Expected outbound data written to transport');
@@ -115,24 +96,20 @@ final class WsConnectionLifecycleTest extends TestCase
     {
         $capturedScope = null;
 
-        $pump = Task::of(static function (ExecutionScope $es) use (&$capturedScope): void {
-            $capturedScope = $es;
-            if ($es instanceof WsScope) {
-                $es->connection->close();
-            }
-        });
+        $route = new WsRoute(fn: static function (WsScope $ws) use (&$capturedScope): void {
+            $capturedScope = $ws;
+            $ws->connection->close();
+        }, config: new WsConfig(pingInterval: 0, maxMessageSize: 1024));
 
         $gateway = new WsGateway();
-        $config = new WsConfig(pingInterval: 0, maxMessageSize: 1024);
-        $handler = new WsConnectionHandler($pump, $config, $gateway);
+        $handler = new WsConnectionHandler($route, $route->config, $gateway);
 
         $transport = new ThroughStream();
         $request = new ServerRequest('GET', '/ws/chat/lobby', ['Host' => 'localhost']);
         $params = new RouteParams(['room' => 'lobby']);
-        $scope = $this->app->createScope();
 
-        async(static function () use ($handler, $scope, $transport, $request, $params): void {
-            $handler->handle($scope, $transport, $request, $params);
+        async(function () use ($handler, $transport, $request, $params): void {
+            $handler->handle($this->app->createScope(), $transport, $request, $params);
         })();
 
         $this->assertInstanceOf(WsScope::class, $capturedScope);
@@ -147,25 +124,18 @@ final class WsConnectionLifecycleTest extends TestCase
     {
         $pumpCompleted = false;
 
-        $pump = Task::of(static function (ExecutionScope $es) use (&$pumpCompleted): void {
-            if (!$es instanceof WsScope) {
-                return;
-            }
-
-            $es->connection->stream($es)->consume();
+        $route = new WsRoute(fn: static function (WsScope $ws) use (&$pumpCompleted): void {
+            $ws->connection->stream($ws)->consume();
             $pumpCompleted = true;
-        });
+        }, config: new WsConfig(pingInterval: 0));
 
         $gateway = new WsGateway();
-        $config = new WsConfig(pingInterval: 0);
-        $handler = new WsConnectionHandler($pump, $config, $gateway);
+        $handler = new WsConnectionHandler($route, $route->config, $gateway);
 
         $transport = new ThroughStream();
-        $request = new ServerRequest('GET', '/ws');
-        $scope = $this->app->createScope();
 
-        async(static function () use ($handler, $scope, $transport, $request): void {
-            $handler->handle($scope, $transport, $request, new RouteParams([]));
+        async(function () use ($handler, $transport): void {
+            $handler->handle($this->app->createScope(), $transport, new ServerRequest('GET', '/ws'), new RouteParams([]));
         })();
 
         $transport->close();
@@ -176,24 +146,19 @@ final class WsConnectionLifecycleTest extends TestCase
     #[Test]
     public function gateway_tracks_connection_during_lifecycle(): void
     {
-        $pump = Task::of(static function (ExecutionScope $es): void {
-            if ($es instanceof WsScope) {
-                $es->connection->close();
-            }
-        });
+        $route = new WsRoute(fn: static function (WsScope $ws): void {
+            $ws->connection->close();
+        }, config: new WsConfig(pingInterval: 0));
 
         $gateway = new WsGateway();
-        $config = new WsConfig(pingInterval: 0);
-        $handler = new WsConnectionHandler($pump, $config, $gateway);
+        $handler = new WsConnectionHandler($route, $route->config, $gateway);
 
         $transport = new ThroughStream();
-        $request = new ServerRequest('GET', '/ws');
-        $scope = $this->app->createScope();
 
         $this->assertSame(0, $gateway->count());
 
-        async(static function () use ($handler, $scope, $transport, $request): void {
-            $handler->handle($scope, $transport, $request, new RouteParams([]));
+        async(function () use ($handler, $transport): void {
+            $handler->handle($this->app->createScope(), $transport, new ServerRequest('GET', '/ws'), new RouteParams([]));
         })();
 
         $this->assertSame(1, $gateway->count());
