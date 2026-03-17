@@ -120,6 +120,74 @@ Convoy is unconventional by design. When contributing or extending:
 
 Convoy is an expression-based async coordination library for PHP 8.4+. It provides a declarative approach to composing async operations (HTTP, SQL, Redis, processes) with built-in concurrency primitives, retry logic, and cancellation support.
 
+## Monorepo Workflow
+
+### Structure
+
+```
+convoy/                          ← root monorepo (jhavenz/convoy)
+├── packages/
+│   ├── convoy-core/             ← split → jhavenz/convoy-core
+│   ├── convoy-console/          ← split → jhavenz/convoy-console
+│   ├── convoy-http/             ← split → jhavenz/convoy-http
+│   ├── convoy-parallel/         ← split → jhavenz/convoy-parallel
+│   ├── convoy-stream/           ← split → jhavenz/convoy-stream
+│   └── convoy-websocket/        ← split → jhavenz/convoy-websocket
+├── composer.json                ← root: all deps, all autoload, all scripts
+├── phpstan.neon                 ← root: level 8 across all packages
+└── rector.php                   ← root: PHP 8.4 rules across all packages
+```
+
+### Commit & Push
+
+All work happens in the root monorepo. **One commit, one push** -- the GitHub Action
+`split_monorepo` (`.github/workflows/split_monorepo.yaml`) handles splitting each
+`packages/*` directory into its own read-only sub-repository on push to `main`.
+
+```bash
+# All commits go to the root repo
+git add <files across any packages>
+git commit -m "message"
+git push origin main
+# → GitHub Action splits to 6 sub-repos automatically
+```
+
+Sub-repos are **read-only mirrors**. Never commit directly to them.
+
+### Composer Management
+
+The **root `composer.json`** is the single source of truth for dependencies and autoloading.
+Individual packages have their own `composer.json` for Packagist metadata (name, description,
+autoload for standalone installation), but during development the root handles everything.
+
+```bash
+# Install/update deps -- always from root
+composer install
+composer require some/package
+
+# Root scripts run tools across all packages
+composer test          # PHPUnit (all packages)
+composer test:core     # PHPUnit (convoy-core only)
+composer analyse       # PHPStan level 8
+composer rector        # Apply rector rules
+composer rector:dry    # Preview rector changes
+composer cs            # Code style check
+composer cs:fix        # Auto-fix code style
+composer check         # analyse + rector:dry + test (full CI gate)
+```
+
+The `replace` section in root `composer.json` tells Composer that the monorepo
+satisfies all sub-package requirements -- no circular dependency issues.
+
+### Adding a New Package
+
+1. Create `packages/convoy-{name}/` with src/, tests/, composer.json
+2. Add PSR-4 entries to root `composer.json` autoload + autoload-dev
+3. Add to `replace` section with version
+4. Add to `.github/workflows/split_monorepo.yaml` matrix
+5. Add src path to `phpstan.neon` paths list
+6. Run `composer dump-autoload`
+
 ## Commands
 
 ```bash
