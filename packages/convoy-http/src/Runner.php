@@ -7,6 +7,7 @@ namespace Convoy\Http;
 use Convoy\AppHost;
 use Convoy\Concurrency\CancellationToken;
 use Convoy\Handler\HandlerGroup;
+use Convoy\Handler\MatchResult;
 use Convoy\Support\SignalHandler;
 use Convoy\Task\Executable;
 use Convoy\Trace\TraceType;
@@ -17,7 +18,10 @@ use React\EventLoop\TimerInterface;
 use React\Http\HttpServer;
 use React\Http\Message\Response;
 use React\Socket\SocketServer;
+use React\Stream\ThroughStream;
 use RuntimeException;
+
+use function React\Async\async;
 
 final class Runner
 {
@@ -27,6 +31,9 @@ final class Runner
     private ?HttpServer $server = null;
     private ?SocketServer $socket = null;
     private ?TimerInterface $windowsTimer = null;
+
+    /** @var ?callable(ExecutionScope, DuplexStreamInterface, ServerRequestInterface, RouteParams, Handler): void */
+    private $onUpgrade = null;
 
     public function __construct(
         private readonly AppHost $app,
@@ -41,6 +48,12 @@ final class Runner
         float $requestTimeout = 30.0,
     ): self {
         return new self($app, $routes, $requestTimeout);
+    }
+
+    public function withUpgradeHandler(callable $onUpgrade): self
+    {
+        $this->onUpgrade = $onUpgrade;
+        return $this;
     }
 
     public function run(string $listen = '0.0.0.0:8080'): int
@@ -71,6 +84,10 @@ final class Runner
 
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
+        if ($this->isWebSocketUpgrade($request)) {
+            return $this->handleUpgrade($request);
+        }
+
         $token = CancellationToken::timeout($this->requestTimeout);
         $scope = $this->app->createScope($token);
         $scope = $scope->withAttribute('request', $request);
@@ -110,6 +127,66 @@ final class Runner
             $trace->print();
             $scope->dispose();
         }
+    }
+
+    /**
+     * Handles WebSocket upgrade requests separately from HTTP.
+     *
+     * The onUpgrade callback receives (ExecutionScope, ThroughStream, ServerRequestInterface)
+     * and is responsible for wiring the WsConnectionHandler. The scope lifecycle is owned
+     * by the connection handler, not the Runner.
+     */
+    private function handleUpgrade(ServerRequestInterface $request): ResponseInterface
+    {
+        if ($this->onUpgrade === null) {
+            return Response::json([
+                'error' => 'WebSocket upgrades not configured',
+            ])->withStatus(426);
+        }
+
+        $scope = $this->app->createScope(CancellationToken::none());
+        $scope = $scope->withAttribute('request', $request);
+
+        try {
+            $onUpgrade = $this->onUpgrade;
+            $throughStream = new ThroughStream();
+
+            $response = $onUpgrade($scope, $throughStream, $request);
+
+            if (!$response instanceof ResponseInterface) {
+                $scope->dispose();
+                return Response::json(['error' => 'Upgrade handler must return ResponseInterface'])->withStatus(500);
+            }
+
+            if ($response->getStatusCode() !== 101) {
+                $scope->dispose();
+                return $response;
+            }
+
+            return new Response(
+                101,
+                $response->getHeaders(),
+                $throughStream,
+            );
+        } catch (RuntimeException $e) {
+            $scope->dispose();
+            if (str_starts_with($e->getMessage(), 'No route matches')) {
+                return Response::json([
+                    'error' => 'Not Found',
+                    'message' => $e->getMessage(),
+                ])->withStatus(404);
+            }
+            return Response::json(['error' => $e->getMessage()])->withStatus(500);
+        } catch (\Throwable $e) {
+            $scope->dispose();
+            return Response::json(['error' => $e->getMessage()])->withStatus(500);
+        }
+    }
+
+    private function isWebSocketUpgrade(ServerRequestInterface $request): bool
+    {
+        return strtolower($request->getHeaderLine('Upgrade')) === 'websocket'
+            && stripos($request->getHeaderLine('Connection'), 'upgrade') !== false;
     }
 
     private function setupSignalHandlers(): void

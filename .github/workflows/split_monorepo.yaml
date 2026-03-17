@@ -22,6 +22,7 @@ jobs:
           - convoy-http
           - convoy-parallel
           - convoy-stream
+          - convoy-websocket
 
     steps:
       - uses: actions/checkout@v4

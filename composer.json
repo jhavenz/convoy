@@ -12,6 +12,7 @@
     "require": {
         "php": "^8.4",
         "evenement/evenement": "^3.0",
+        "ratchet/rfc6455": "^0.4.0",
         "react/async": "^4.3",
         "react/child-process": "^0.6",
         "react/event-loop": "^1.5",
@@ -35,7 +36,8 @@
             "Convoy\\Console\\": "packages/convoy-console/src/",
             "Convoy\\Http\\": "packages/convoy-http/src/",
             "Convoy\\Parallel\\": "packages/convoy-parallel/src/",
-            "Convoy\\Stream\\": "packages/convoy-stream/src/"
+            "Convoy\\Stream\\": "packages/convoy-stream/src/",
+            "Convoy\\WebSocket\\": "packages/convoy-websocket/src/"
         }
     },
     "autoload-dev": {
@@ -44,7 +46,8 @@
             "Convoy\\Http\\Tests\\": "packages/convoy-http/tests/",
             "Convoy\\Parallel\\Tests\\": "packages/convoy-parallel/tests/",
             "Convoy\\Stream\\Tests\\": "packages/convoy-stream/tests/",
-            "Convoy\\Tests\\": "packages/convoy-core/tests/"
+            "Convoy\\Tests\\": "packages/convoy-core/tests/",
+            "Convoy\\WebSocket\\Tests\\": "packages/convoy-websocket/tests/"
         },
         "classmap": [
             "packages/convoy-core/tests/Support/Fixtures/"
@@ -72,7 +75,8 @@
         "convoy/core": "1.0.0-alpha",
         "convoy/http": "1.0.0-alpha",
         "convoy/parallel": "1.0.0-alpha",
-        "convoy/stream": "1.0.0-alpha"
+        "convoy/stream": "1.0.0-alpha",
+        "convoy/websocket": "1.0.0-alpha"
     },
     "minimum-stability": "dev",
     "prefer-stable": true
